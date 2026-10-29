@@ -19,6 +19,11 @@ class ModelArguments:
         default=None, metadata={"help": "Where do you want to store the pretrained models downloaded from s3"}
     )
 
+    model_revision: Optional[str] = field(
+        default=None,
+        metadata={"help": "Revision of the model to use (branch name, tag, or commit id)."},
+    )
+
     pooling: str = field(
         default='cls',
         metadata={"help": "pooling method for query and passage encoder"}
@@ -76,6 +81,25 @@ class ModelArguments:
         metadata={
             "help": 'The attention implementation to use in the model (if relevant). Can be any of `"eager"` (manual implementation of the attention), `"sdpa"` (using [`F.scaled_dot_product_attention`](https://pytorch.org/docs/master/generated/torch.nn.functional.scaled_dot_product_attention.html)), or `"flash_attention_2"` (using [Dao-AILab/flash-attention](https://github.com/Dao-AILab/flash-attention)).'
         },
+    )
+
+    untie_encoder: bool = field(
+        default=False,
+        metadata={"help": "Use separate query/passage parameters (JAX dual-encoder training)."},
+    )
+
+    # --- causal-LM SPLADE (LACONIC) ---
+    is_bidirectional: bool = field(
+        default=False,
+        metadata={"help": "For decoder-LM SPLADE: convert the backbone to full "
+                          "(bidirectional) attention so every token sees the whole "
+                          "sequence. Validated for Llama 3 / Qwen2.5."},
+    )
+    pooling_strategy: str = field(
+        default="max",
+        metadata={"help": "Sequence aggregation for decoder-LM SPLADE: 'max' "
+                          "(SPLADE max-pool, default), 'mean', or 'last'.",
+                  "choices": ["max", "mean", "last"]},
     )
 
 
@@ -169,8 +193,25 @@ class DataArguments:
         default='', metadata={"help": "prefix or instruction for passage"}
     )
 
+    passage_field_separator: str = field(
+        default=' ',
+        metadata={
+            "help": "Separator between passage title and body in legacy example loaders; "
+            "may be a tokenizer attribute name or a literal string."
+        },
+    )
+
     append_eos_token: bool = field(
         default=False, metadata={"help": "append eos token to query and passage, this is currently used for repllama"}
+    )
+
+    add_special_tokens: bool = field(
+        default=True,
+        metadata={"help": "Whether tokenization prepends special tokens (e.g. BOS). "
+                          "Default True (backward-compatible). Set False for decoder-LM "
+                          "SPLADE (LACONIC): the BOS token is an attention sink whose "
+                          "hidden state projects large generic-token logits that dominate "
+                          "the SPLADE max-pool and collapse all representations."},
     )
 
     pad_to_multiple_of: Optional[int] = field(
@@ -217,4 +258,20 @@ class TevatronTrainingArguments(TrainingArguments):
     distil_temperature: float = field(
         default=0.02,
         metadata={"help": "temperature for distillation"}
+    )
+
+
+@dataclass
+class SpladeTrainingArguments(TevatronTrainingArguments):
+    """Adds FLOPS sparsity-regularization knobs for SPLADE training. Used by the
+    causal-SPLADE driver together with ``SpladeTrainer``; the dense path is
+    unaffected."""
+    q_flops_loss_factor: float = field(
+        default=1e-2, metadata={"help": "target FLOPS-regularization weight for query reps"}
+    )
+    p_flops_loss_factor: float = field(
+        default=1e-2, metadata={"help": "target FLOPS-regularization weight for passage reps"}
+    )
+    flops_warmup: int = field(
+        default=1000, metadata={"help": "steps to quadratically ramp the FLOPS weight from 0 to target"}
     )

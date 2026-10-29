@@ -17,6 +17,16 @@ class ModelArguments:
         default=None, metadata={"help": "Where do you want to store the pretrained models downloaded from s3"}
     )
 
+    reranker_model_type: str = field(
+        default="sequence_classification",
+        metadata={"help": "Reranker model type: sequence_classification or backbone"}
+    )
+
+    reranker_pooling: str = field(
+        default="last",
+        metadata={"help": "Pooling method for backbone rerankers: last or cls"}
+    )
+
     # for lora
     lora: bool = field(default=False,
         metadata={"help": "do parameter-efficient fine-tuning with lora"}
@@ -44,6 +54,12 @@ class ModelArguments:
     lora_target_modules: str = field(
         default="q_proj,k_proj,v_proj,o_proj,down_proj,up_proj,gate_proj",
         metadata={"help": "lora target modules"}
+    )
+
+    attn_implementation: Optional[str] = field(
+        default=None,
+        metadata={"help": 'Attention implementation passed to from_pretrained, e.g. "sdpa", '
+                          '"flash_attention_2", "eager". Default None keeps the transformers default.'},
     )
 
 

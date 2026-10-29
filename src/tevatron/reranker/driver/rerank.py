@@ -18,6 +18,7 @@ from tevatron.reranker.arguments import ModelArguments, DataArguments
 from tevatron.reranker.dataset import RerankerInferenceDataset
 from tevatron.reranker.modeling import RerankerModel
 from tevatron.reranker.collator import RerankerInferenceCollator
+from tevatron.utils.io import ensure_parent_dir
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,8 @@ def main():
 
     if training_args.local_rank > 0 or training_args.n_gpu > 1:
         raise NotImplementedError('Multi-GPU encoding is not supported.')
+
+    ensure_parent_dir(data_args.rerank_output_path)
 
     # Setup logging
     logging.basicConfig(
@@ -55,6 +58,8 @@ def main():
         lora_name_or_path=model_args.lora_name_or_path,
         cache_dir=model_args.cache_dir,
     )
+    # Match the tokenizer's pad id — see the same comment in driver/train.py.
+    model.hf_model.config.pad_token_id = tokenizer.pad_token_id
 
     rerank_dataset = RerankerInferenceDataset(data_args=data_args)
     rerank_collator = RerankerInferenceCollator(data_args=data_args, tokenizer=tokenizer)
